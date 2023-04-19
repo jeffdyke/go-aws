@@ -20,7 +20,7 @@ type LocalPortForward struct {
 	LocalPort  int
 }
 
-func loadTarget(server string, region string) TargetConfig {
+func buildConfig(server string, region string) TargetConfig {
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
@@ -44,8 +44,8 @@ func mysql(tgtCfg LocalPortForward) {
 	log.Fatal(ssmclient.PortPluginSession(tgtCfg.Config, &in))
 }
 
-func main() {
-	tc := loadTarget("develop", "us-east-1")
-	lpf := LocalPortForward{TargetConfig: tc, RemotePort: 3306, LocalPort: 1515}
-	mysql(lpf)
-}
+// func main() {
+// 	tc := buildConfig("proddb01", "us-east-1")
+// 	lpf := LocalPortForward{TargetConfig: tc, RemotePort: 3306, LocalPort: 1515}
+// 	mysql(lpf)
+// }

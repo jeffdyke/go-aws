@@ -13,6 +13,7 @@ import (
 type InstanceAZ struct {
 	InstanceId       string
 	AvailabilityZone string
+	Region           string
 }
 
 type EC2Client struct {
@@ -27,17 +28,21 @@ func (blEc2 EC2Client) init() ec2.Client {
 	return *ec2.NewFromConfig(cfg)
 }
 
-type EC2DescribeInstancesAPI interface {
-	DescribeInstances(ctx context.Context,
-		params *ec2.DescribeInstancesInput,
-		optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+type TagToFilter struct {
+	name     string
+	rewrites map[string]string
 }
 
-func GetInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
-	return api.DescribeInstances(c, input)
+func (ttf TagToFilter) rewriteTag() string {
+	tag, ok := ttf.rewrites[ttf.name]
+	if ok {
+		return tag
+	} else {
+		return ttf.name
+	}
 }
 
-func GetFilter(server string) types.Filter {
+func (ttf TagToFilter) getFilter() types.Filter {
 	filters := AwsFilters{TagName: "tag:Name", PrivateIpFilter: "network-interface.private-dns-name"}
 	var filter types.Filter
 	reg, err := regexp.Compile("^dev*|^prod[!w]*|^staging*|^issuer-portal|^banker-portal")
@@ -53,19 +58,31 @@ func GetFilter(server string) types.Filter {
 		log.Fatal("Could not parse regex", err)
 	}
 
-	if reg.MatchString(server) {
-		filter = types.Filter{Name: &filters.TagName, Values: []string{server}}
-	} else if west.MatchString(server) {
-		filter = types.Filter{Name: &filters.TagName, Values: []string{server}}
-	} else if ip.MatchString(server) {
-		filter = types.Filter{Name: &filters.PrivateIpFilter, Values: []string{server}}
+	if reg.MatchString(ttf.name) {
+		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag()}}
+	} else if west.MatchString(ttf.name) {
+		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag()}}
+	} else if ip.MatchString(ttf.name) {
+		filter = types.Filter{Name: &filters.PrivateIpFilter, Values: []string{ttf.name}}
 	}
 	return filter
 }
 
+type EC2DescribeInstancesAPI interface {
+	DescribeInstances(ctx context.Context,
+		params *ec2.DescribeInstancesInput,
+		optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+}
+
+func GetInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+	return api.DescribeInstances(c, input)
+}
+
 func getInstanceAZ(name string, region string) InstanceAZ {
+	rewrites := map[string]string{"prodsalt01": "prodmonitor", "stagingsalt01": "stagingmonitor", "proddrone": "proddrone-server"}
 	client := client(region)
-	filter := GetFilter(name)
+	ttf := TagToFilter{name: name, rewrites: rewrites}
+	filter := ttf.getFilter()
 	input := ec2.DescribeInstancesInput{Filters: []types.Filter{filter}}
 	instance, err := GetInstances(context.TODO(), &client, &input)
 	if err != nil {
@@ -73,7 +90,7 @@ func getInstanceAZ(name string, region string) InstanceAZ {
 	}
 	this := instance.Reservations[0].Instances[0]
 
-	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone}
+	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone, Region: region}
 }
 
 func client(region string) ec2.Client {
