@@ -20,8 +20,8 @@ type EC2Client struct {
 	region string
 }
 
-func (blEc2 EC2Client) init() ec2.Client {
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(blEc2.region))
+func (lclEc2 EC2Client) init() ec2.Client {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(lclEc2.region))
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
@@ -74,7 +74,7 @@ type EC2DescribeInstancesAPI interface {
 		optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
 }
 
-func GetInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
+func getInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 	return api.DescribeInstances(c, input)
 }
 
@@ -84,7 +84,7 @@ func getInstanceAZ(name string, region string) InstanceAZ {
 	ttf := TagToFilter{name: name, rewrites: rewrites}
 	filter := ttf.getFilter()
 	input := ec2.DescribeInstancesInput{Filters: []types.Filter{filter}}
-	instance, err := GetInstances(context.TODO(), &client, &input)
+	instance, err := getInstances(context.TODO(), &client, &input)
 	if err != nil {
 		log.Fatal("Can't find instance from "+name+"\r", err)
 	}
@@ -94,16 +94,5 @@ func getInstanceAZ(name string, region string) InstanceAZ {
 }
 
 func client(region string) ec2.Client {
-	return EC2Client{region: "us-east-1"}.init()
+	return EC2Client{region: region}.init()
 }
-
-// func main() {
-// 	// client := client("us-east-1")
-// 	// filter := GetFilter("develop")
-
-// 	//input := ec2.DescribeInstancesInput{Filters: []types.Filter{filter}}
-// 	// instance, err := GetInstances(context.TODO(), &client, &input)
-// 	iAZ := getInstanceAZ("develop", "us-east-1")
-
-// 	log.Printf("%+v\n", iAZ)
-// }
