@@ -35,7 +35,7 @@ func buildConfig(server string, region string) TargetConfig {
 
 }
 
-func mysql(tgtCfg LocalPortForward) {
+func portForward(tgtCfg LocalPortForward) {
 	in := ssmclient.PortForwardingInput{
 		Target:     tgtCfg.Target,
 		RemotePort: int(tgtCfg.RemotePort),
