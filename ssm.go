@@ -26,7 +26,7 @@ func buildConfig(server string, region string) TargetConfig {
 	if err != nil {
 		log.Fatalf("unable to load SDK config, %v", err)
 	}
-	inAZ := getInstanceAZ(server, region)
+	inAZ, err := getInstanceAZ(server, region)
 	if err != nil {
 		log.Println()
 		log.Fatal("Failed to resolve target "+server, err)

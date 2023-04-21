@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -32,7 +33,9 @@ func (pf *PortForward) loadForm() []*widget.FormItem {
 
 func (pf *PortForward) updateWindow(lpf LocalPortForward) {
 	connText := fmt.Sprintf("Host Name: %s\n\nLocal Port: %d\n\nRemote Port: %d\n\n", pf.form["Host"].Text, lpf.LocalPort, lpf.RemotePort)
-	log.Printf("%v+\n", pf.form)
+	for k, v := range pf.form {
+		log.Printf("Key %s Value %s", k, v.Text)
+	}
 	connected := widget.NewLabel(connText)
 	cButton := &widget.Button{Icon: theme.ConfirmIcon(), Text: "Close Window and Session", Importance: widget.HighImportance, OnTapped: pf.window.Close}
 	cButton.ExtendBaseWidget(cButton)
@@ -59,13 +62,16 @@ func (pf *PortForward) submitForm() {
 		region = "us-east-1"
 	}
 	tc := buildConfig(pf.form["Host"].Text, region)
+
 	rp, err := strconv.Atoi(pf.form["RemotePort"].Text)
 	if err != nil {
-		pf.errorWindow(fmt.Sprintf("RemotePort %s could not be converted to int\n\n", pf.form["RemotePort"].Text), err)
+		dialog.ShowError(err, pf.window)
+		pf.loadPFForm()
 	}
 	lp, err := strconv.Atoi(pf.form["LocalPort"].Text)
 	if err != nil {
-		pf.errorWindow(fmt.Sprintf("LocalPort %s could not be converted to int\n\n", pf.form["LocalPort"].Text), err)
+		dialog.ShowError(err, pf.window)
+		pf.loadPFForm()
 	}
 	lpf := LocalPortForward{TargetConfig: tc, RemotePort: rp, LocalPort: lp}
 
@@ -75,6 +81,10 @@ func (pf *PortForward) submitForm() {
 
 	pf.updateWindow(lpf)
 
+}
+
+func (pf *PortForward) loadPFForm() {
+	portForwardForm()
 }
 
 func portForwardForm() {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"regexp"
 
@@ -42,20 +43,22 @@ func (ttf TagToFilter) rewriteTag() string {
 	}
 }
 
-func (ttf TagToFilter) getFilter() types.Filter {
+// Need the window object from PortFoward
+func (ttf TagToFilter) getFilter() (types.Filter, error) {
 	filters := AwsFilters{TagName: "tag:Name", PrivateIpFilter: "network-interface.private-dns-name"}
 	var filter types.Filter
+	var badFormat error
 	reg, err := regexp.Compile("^dev*|^prod[!w]*|^staging*|^issuer-portal|^banker-portal")
 	if err != nil {
-		log.Fatal("Could not parse regex", err)
+		return types.Filter{}, err
 	}
 	west, err := regexp.Compile("^prodwest*")
 	if err != nil {
-		log.Fatal("Could not parse regex", err)
+		return types.Filter{}, err
 	}
 	ip, err := regexp.Compile("^ip-*")
 	if err != nil {
-		log.Fatal("Could not parse regex", err)
+		return types.Filter{}, err
 	}
 
 	if reg.MatchString(ttf.name) {
@@ -64,8 +67,13 @@ func (ttf TagToFilter) getFilter() types.Filter {
 		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag()}}
 	} else if ip.MatchString(ttf.name) {
 		filter = types.Filter{Name: &filters.PrivateIpFilter, Values: []string{ttf.name}}
+	} else {
+		badFormat = errors.New("could not match one of the required formats for " + ttf.name + "\n Rewrite attempt " + ttf.rewriteTag())
+		return types.Filter{}, badFormat
 	}
-	return filter
+
+	return filter, nil
+
 }
 
 type EC2DescribeInstancesAPI interface {
@@ -78,19 +86,26 @@ func getInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.Des
 	return api.DescribeInstances(c, input)
 }
 
-func getInstanceAZ(name string, region string) InstanceAZ {
+func getInstanceAZ(name string, region string) (InstanceAZ, error) {
 	rewrites := map[string]string{"prodsalt01": "prodmonitor", "stagingsalt01": "stagingmonitor", "proddrone": "proddrone-server"}
 	client := client(region)
 	ttf := TagToFilter{name: name, rewrites: rewrites}
-	filter := ttf.getFilter()
-	input := ec2.DescribeInstancesInput{Filters: []types.Filter{filter}}
-	instance, err := getInstances(context.TODO(), &client, &input)
+	filter, err := ttf.getFilter()
 	if err != nil {
-		log.Fatal("Can't find instance from "+name+"\r", err)
+		return InstanceAZ{}, err
 	}
+	input := ec2.DescribeInstancesInput{Filters: []types.Filter{filter}}
+
+	instance, _ := getInstances(context.TODO(), &client, &input)
+
+	// log.Printf("Metadata %v \n", instance.ResultMetadata)
+
 	this := instance.Reservations[0].Instances[0]
 
-	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone, Region: region}
+	log.Printf("%+v\n", this.Tags)
+	log.Printf("InstanceId: %s, AZ %s, Region: %s", *this.InstanceId, *this.Placement.AvailabilityZone, region)
+
+	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone, Region: region}, nil
 }
 
 func client(region string) ec2.Client {
