@@ -43,7 +43,6 @@ func (ttf TagToFilter) rewriteTag() string {
 	}
 }
 
-// Need the window object from PortFoward
 func (ttf TagToFilter) getFilter() (types.Filter, error) {
 	filters := AwsFilters{TagName: "tag:Name", PrivateIpFilter: "network-interface.private-dns-name"}
 	var filter types.Filter
@@ -68,7 +67,7 @@ func (ttf TagToFilter) getFilter() (types.Filter, error) {
 	} else if ip.MatchString(ttf.name) {
 		filter = types.Filter{Name: &filters.PrivateIpFilter, Values: []string{ttf.name}}
 	} else {
-		badFormat = errors.New("could not match one of the required formats for " + ttf.name + "\n Rewrite attempt " + ttf.rewriteTag())
+		badFormat = errors.New("HostNotFound: " + ttf.name)
 		return types.Filter{}, badFormat
 	}
 
@@ -86,6 +85,23 @@ func getInstances(c context.Context, api EC2DescribeInstancesAPI, input *ec2.Des
 	return api.DescribeInstances(c, input)
 }
 
+func instanceConfig(server string, region string) (TargetConfig, error) {
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
+	if err != nil {
+		log.Println("Target Config failed")
+		return TargetConfig{}, err
+	}
+	inAZ, err := getInstanceAZ(server, region)
+	if err != nil {
+		log.Println("GetInstanceAZ failed", err)
+		return TargetConfig{}, err
+	}
+
+	return TargetConfig{Target: inAZ.InstanceId, Config: cfg}, nil
+
+}
+
 func getInstanceAZ(name string, region string) (InstanceAZ, error) {
 	rewrites := map[string]string{"prodsalt01": "prodmonitor", "stagingsalt01": "stagingmonitor", "proddrone": "proddrone-server"}
 	client := client(region)
@@ -98,11 +114,8 @@ func getInstanceAZ(name string, region string) (InstanceAZ, error) {
 
 	instance, _ := getInstances(context.TODO(), &client, &input)
 
-	// log.Printf("Metadata %v \n", instance.ResultMetadata)
-
 	this := instance.Reservations[0].Instances[0]
 
-	log.Printf("%+v\n", this.Tags)
 	log.Printf("InstanceId: %s, AZ %s, Region: %s", *this.InstanceId, *this.Placement.AvailabilityZone, region)
 
 	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone, Region: region}, nil

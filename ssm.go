@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/mmmorris1975/ssm-session-client/ssmclient"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 )
 
 type TargetConfig struct {
@@ -20,21 +18,6 @@ type LocalPortForward struct {
 	LocalPort  int
 }
 
-func buildConfig(server string, region string) TargetConfig {
-
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
-	}
-	inAZ, err := getInstanceAZ(server, region)
-	if err != nil {
-		log.Println()
-		log.Fatal("Failed to resolve target "+server, err)
-	}
-	return TargetConfig{Target: inAZ.InstanceId, Config: cfg}
-
-}
-
 func portForward(tgtCfg LocalPortForward) {
 	in := ssmclient.PortForwardingInput{
 		Target:     tgtCfg.Target,
@@ -45,7 +28,7 @@ func portForward(tgtCfg LocalPortForward) {
 }
 
 // func main() {
-// 	tc := buildConfig("proddb01", "us-east-1")
+// 	tc := instanceConfig("proddb01", "us-east-1")
 // 	lpf := LocalPortForward{TargetConfig: tc, RemotePort: 3306, LocalPort: 1515}
 // 	mysql(lpf)
 // }

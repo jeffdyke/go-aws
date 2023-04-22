@@ -2,14 +2,11 @@ package main
 
 import (
 	"fmt"
-	"image/color"
 	"log"
 	"strconv"
 	s "strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/dialog"
@@ -46,12 +43,15 @@ func (pf *PortForward) updateWindow(lpf LocalPortForward) {
 }
 
 func (pf *PortForward) errorWindow(msg string, err error) {
-	cRed := color.RGBA{207, 0, 15, 1}
-	msgL := canvas.NewText(msg, cRed)
-	errL := canvas.NewText(err.Error(), cRed)
-	cButton := &widget.Button{Icon: theme.ErrorIcon(), Text: "Return to Form", Importance: widget.HighImportance, OnTapped: func() { defer pf.loadForm() }}
-	pf.window.SetContent(container.New(layout.NewCenterLayout(), msgL, errL, canvas.NewLine(color.Black), cButton))
 
+	msgL := widget.NewLabelWithStyle(msg, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	errL := widget.NewLabelWithStyle(err.Error(), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+	cButton := widget.NewButton("Return to form", func() {
+		pf.portForwardForm()
+	})
+	pf.window.SetContent(container.New(layout.NewGridLayout(2), widget.NewLabel("Message"), msgL, widget.NewLabel("Error"), errL, layout.NewSpacer(), cButton))
+	pf.window.Resize(pf.window.Content().MinSize())
 }
 func (pf *PortForward) submitForm() {
 
@@ -61,18 +61,21 @@ func (pf *PortForward) submitForm() {
 	} else {
 		region = "us-east-1"
 	}
-	tc := buildConfig(pf.form["Host"].Text, region)
+	tc, err := instanceConfig(pf.form["Host"].Text, region)
+	if err != nil {
+		pf.errorWindow("Build Config Failed", err)
+		return
+	}
 
 	rp, err := strconv.Atoi(pf.form["RemotePort"].Text)
 	if err != nil {
 		dialog.ShowError(err, pf.window)
-		pf.loadPFForm()
 	}
 	lp, err := strconv.Atoi(pf.form["LocalPort"].Text)
 	if err != nil {
 		dialog.ShowError(err, pf.window)
-		pf.loadPFForm()
 	}
+
 	lpf := LocalPortForward{TargetConfig: tc, RemotePort: rp, LocalPort: lp}
 
 	go func() {
@@ -83,11 +86,7 @@ func (pf *PortForward) submitForm() {
 
 }
 
-func (pf *PortForward) loadPFForm() {
-	portForwardForm()
-}
-
-func portForwardForm() {
+func (pf *PortForward) portForwardForm() {
 	hostEV := &widget.Entry{Validator: validation.NewRegexp("[a-z0-3-]+", "Validation for Host fails")}
 	hostEV.ExtendBaseWidget(hostEV)
 	lpEV := &widget.Entry{Validator: validation.NewRegexp("[0-9]+", "Validation for LocalPort fails, number required"),
@@ -96,15 +95,13 @@ func portForwardForm() {
 	rpEV := &widget.Entry{Validator: validation.NewRegexp("[0-9]", "Validation for Remote fails, number required"),
 		Text: "3306", PlaceHolder: "3306"}
 	rpEV.ExtendBaseWidget(rpEV)
-	a := app.New()
 
 	var frm = map[string]*widget.Entry{
 		"Host":       hostEV,
 		"LocalPort":  lpEV,
 		"RemotePort": rpEV,
 	}
-	pf := PortForward{form: frm}
-	pf.window = a.NewWindow("BL Port Forwarding")
+	pf.form = frm
 
 	form := &widget.Form{
 		Items:    pf.loadForm(),
@@ -117,5 +114,4 @@ func portForwardForm() {
 	pf.window.Resize(fyne.NewSize(360, 240))
 
 	pf.window.SetContent(c)
-	pf.window.ShowAndRun()
 }
