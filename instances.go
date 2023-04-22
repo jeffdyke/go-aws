@@ -21,6 +21,11 @@ type EC2Client struct {
 	region string
 }
 
+type TagToFilter struct {
+	name     string
+	rewrites map[string]string
+}
+
 func (lclEc2 EC2Client) init() ec2.Client {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(lclEc2.region))
 	if err != nil {
@@ -29,24 +34,19 @@ func (lclEc2 EC2Client) init() ec2.Client {
 	return *ec2.NewFromConfig(cfg)
 }
 
-type TagToFilter struct {
-	name     string
-	rewrites map[string]string
-}
-
-func (ttf TagToFilter) rewriteTag() string {
-	tag, ok := ttf.rewrites[ttf.name]
+func (ttf TagToFilter) rewriteTag(server string) string {
+	tag, ok := ttf.rewrites[server]
 	if ok {
 		return tag
 	} else {
-		return ttf.name
+		return server
 	}
 }
 
 func (ttf TagToFilter) getFilter() (types.Filter, error) {
+
 	filters := AwsFilters{TagName: "tag:Name", PrivateIpFilter: "network-interface.private-dns-name"}
 	var filter types.Filter
-	var badFormat error
 	reg, err := regexp.Compile("^dev*|^prod[!w]*|^staging*|^issuer-portal|^banker-portal")
 	if err != nil {
 		return types.Filter{}, err
@@ -61,14 +61,13 @@ func (ttf TagToFilter) getFilter() (types.Filter, error) {
 	}
 
 	if reg.MatchString(ttf.name) {
-		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag()}}
+		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag(ttf.name)}}
 	} else if west.MatchString(ttf.name) {
-		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag()}}
+		filter = types.Filter{Name: &filters.TagName, Values: []string{ttf.rewriteTag(ttf.name)}}
 	} else if ip.MatchString(ttf.name) {
 		filter = types.Filter{Name: &filters.PrivateIpFilter, Values: []string{ttf.name}}
 	} else {
-		badFormat = errors.New("HostNotFound: " + ttf.name)
-		return types.Filter{}, badFormat
+		return types.Filter{}, errors.New("HostNotFound: " + ttf.name)
 	}
 
 	return filter, nil
@@ -103,9 +102,9 @@ func instanceConfig(server string, region string) (TargetConfig, error) {
 }
 
 func getInstanceAZ(name string, region string) (InstanceAZ, error) {
-	rewrites := map[string]string{"prodsalt01": "prodmonitor", "stagingsalt01": "stagingmonitor", "proddrone": "proddrone-server"}
+
 	client := client(region)
-	ttf := TagToFilter{name: name, rewrites: rewrites}
+	ttf := TagToFilter{name: name, rewrites: map[string]string{"prodsalt01": "prodmonitor", "stagingsalt01": "stagingmonitor", "proddrone": "proddrone-server"}}
 	filter, err := ttf.getFilter()
 	if err != nil {
 		return InstanceAZ{}, err
