@@ -26,6 +26,10 @@ type TagToFilter struct {
 	rewrites map[string]string
 }
 
+func client(region string) ec2.Client {
+	return EC2Client{region: region}.init()
+}
+
 func (lclEc2 EC2Client) init() ec2.Client {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(lclEc2.region))
 	if err != nil {
@@ -118,8 +122,4 @@ func getInstanceAZ(name string, region string) (InstanceAZ, error) {
 	log.Printf("InstanceId: %s, AZ %s, Region: %s", *this.InstanceId, *this.Placement.AvailabilityZone, region)
 
 	return InstanceAZ{InstanceId: *this.InstanceId, AvailabilityZone: *this.Placement.AvailabilityZone, Region: region}, nil
-}
-
-func client(region string) ec2.Client {
-	return EC2Client{region: region}.init()
 }

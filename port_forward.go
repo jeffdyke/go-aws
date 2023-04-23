@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"image/color"
 	"log"
 	"strconv"
 	s "strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/dialog"
@@ -28,15 +29,23 @@ func (pf *PortForward) loadForm() []*widget.FormItem {
 	}
 }
 
-func (pf *PortForward) updateWindow(lpf LocalPortForward) {
-	connText := fmt.Sprintf("Host Name: %s\n\nLocal Port: %d\n\nRemote Port: %d\n\n", pf.form["Host"].Text, lpf.LocalPort, lpf.RemotePort)
+func (pf *PortForward) successWindow(lpf LocalPortForward) {
+	blue := color.RGBA{5, 55, 247, 1}
+	// green := color.RGBA{45, 172, 31, 1}
+	connText := []fyne.CanvasObject{
+		canvas.NewText("Host Name", color.White), canvas.NewText(pf.form["Host"].Text, color.White),
+		canvas.NewText("Local Port", color.White), canvas.NewText(pf.form["LocalPort"].Text, color.White),
+		canvas.NewText("Remote Port", color.White), canvas.NewText(pf.form["RemotePort"].Text, color.White),
+	}
+
 	for k, v := range pf.form {
 		log.Printf("Key %s Value %s", k, v.Text)
 	}
-	connected := widget.NewLabel(connText)
-	cButton := &widget.Button{Icon: theme.ConfirmIcon(), Text: "Close Window and Session", Importance: widget.HighImportance, OnTapped: pf.window.Close}
+	connected := &fyne.Container{Layout: layout.NewGridLayout(2), Objects: connText}
+	cButton := &widget.Button{Icon: theme.ConfirmIcon(), Text: "Close Window and Session",
+		Importance: widget.HighImportance, OnTapped: pf.window.Close}
 	cButton.ExtendBaseWidget(cButton)
-	c := &fyne.Container{Layout: layout.NewGridLayoutWithRows(1), Objects: []fyne.CanvasObject{connected, cButton}}
+	c := &fyne.Container{Layout: layout.NewGridLayoutWithRows(1), Objects: []fyne.CanvasObject{connected, container.NewMax(canvas.NewRectangle(blue), cButton)}}
 
 	pf.window.SetContent(c)
 	pf.window.Resize(pf.window.Content().MinSize())
@@ -82,7 +91,7 @@ func (pf *PortForward) submitForm() {
 		portForward(lpf)
 	}()
 
-	pf.updateWindow(lpf)
+	pf.successWindow(lpf)
 
 }
 
