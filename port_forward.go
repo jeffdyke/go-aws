@@ -30,7 +30,6 @@ func (pf *PortForward) loadForm() []*widget.FormItem {
 }
 
 func (pf *PortForward) successWindow(lpf LocalPortForward) {
-	blue := color.RGBA{5, 55, 247, 1}
 	// green := color.RGBA{45, 172, 31, 1}
 	connText := []fyne.CanvasObject{
 		canvas.NewText("Host Name", color.White), canvas.NewText(pf.form["Host"].Text, color.White),
@@ -45,21 +44,21 @@ func (pf *PortForward) successWindow(lpf LocalPortForward) {
 	cButton := &widget.Button{Icon: theme.ConfirmIcon(), Text: "Close Window and Session",
 		Importance: widget.HighImportance, OnTapped: pf.window.Close}
 	cButton.ExtendBaseWidget(cButton)
-	c := &fyne.Container{Layout: layout.NewGridLayoutWithRows(1), Objects: []fyne.CanvasObject{connected, container.NewCenter(canvas.NewRectangle(blue), cButton)}}
+	c := &fyne.Container{Layout: layout.NewGridLayoutWithRows(1), Objects: []fyne.CanvasObject{connected, container.NewCenter(canvas.NewRectangle(new(LocalColor).blue()), cButton)}}
 
 	pf.window.SetContent(c)
 	pf.window.Resize(pf.window.Content().MinSize())
 }
 
 func (pf *PortForward) errorWindow(msg string, err error) {
-	blue := color.RGBA{5, 55, 247, 1}
+
 	msgL := widget.NewLabelWithStyle(msg, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	errL := widget.NewLabelWithStyle(err.Error(), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	cButton := &widget.Button{Icon: theme.ConfirmIcon(), Text: "Return to Form",
 		Importance: widget.HighImportance, OnTapped: pf.portForwardForm}
 	cButton.ExtendBaseWidget(cButton)
 
-	pf.window.SetContent(container.New(layout.NewGridLayout(2), widget.NewLabel("Message"), msgL, widget.NewLabel("Error"), errL, layout.NewSpacer(), container.NewCenter(canvas.NewRectangle(blue), cButton)))
+	pf.window.SetContent(container.New(layout.NewGridLayout(2), widget.NewLabel("Message"), msgL, widget.NewLabel("Error"), errL, layout.NewSpacer(), container.NewCenter(canvas.NewRectangle(new(LocalColor).blue()), cButton)))
 	pf.window.Resize(pf.window.Content().MinSize())
 }
 func (pf *PortForward) submitForm() {
