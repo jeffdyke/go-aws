@@ -58,18 +58,46 @@ func (pf *PortForward) errorWindow(msg string, err error) {
 		Importance: widget.HighImportance, OnTapped: pf.portForwardForm}
 	cButton.ExtendBaseWidget(cButton)
 
-	pf.window.SetContent(container.New(layout.NewGridLayout(2), widget.NewLabel("Message"), msgL, widget.NewLabel("Error"), errL, layout.NewSpacer(), container.NewCenter(canvas.NewRectangle(new(LocalColor).blue()), cButton)))
+	pf.window.SetContent(
+		container.New(layout.NewGridLayout(2),
+			widget.NewLabel("Message"),
+			msgL,
+			widget.NewLabel("Error"),
+			errL,
+			layout.NewSpacer(),
+			container.NewCenter(canvas.NewRectangle(new(LocalColor).blue()),
+				cButton,
+			),
+		),
+	)
 	pf.window.Resize(pf.window.Content().MinSize())
+}
+
+// func (pf *PortForward) raw_connect(ports []string) {
+// 	var host = "127.0.0.1"
+// 	for _, port := range ports {
+// 		timeout := time.Second
+// 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), timeout)
+// 		if err != nil {
+// 			log.Println("Connecting error:", err)
+// 		}
+// 		if conn != nil {
+// 			defer conn.Close()
+// 			log.Println("Opened", net.JoinHostPort(host, port))
+// 		}
+// 	}
+// }
+
+func (pf *PortForward) region() string {
+	if s.Contains(pf.form["Host"].Text, "west") {
+		return "us-west-2"
+	} else {
+		return "us-east-1"
+	}
 }
 func (pf *PortForward) submitForm() {
 
-	var region string
-	if s.Contains(pf.form["Host"].Text, "west") {
-		region = "us-west-2"
-	} else {
-		region = "us-east-1"
-	}
-	tc, err := instanceConfig(pf.form["Host"].Text, region)
+	tc, err := instanceConfig(pf.form["Host"].Text, pf.region())
 	if err != nil {
 		pf.errorWindow("Build Config Failed", err)
 		return

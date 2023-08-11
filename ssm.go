@@ -3,9 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/mmmorris1975/ssm-session-client/ssmclient"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/mmmorris1975/ssm-session-client/ssmclient"
 )
 
 type TargetConfig struct {
@@ -24,11 +23,5 @@ func portForward(tgtCfg LocalPortForward) {
 		RemotePort: int(tgtCfg.RemotePort),
 		LocalPort:  int(tgtCfg.LocalPort),
 	}
-	log.Fatal(ssmclient.PortPluginSession(tgtCfg.Config, &in))
+	log.Fatal(ssmclient.PortForwardingSession(tgtCfg.Config, &in))
 }
-
-// func main() {
-// 	tc := instanceConfig("proddb01", "us-east-1")
-// 	lpf := LocalPortForward{TargetConfig: tc, RemotePort: 3306, LocalPort: 1515}
-// 	mysql(lpf)
-// }
